@@ -72,7 +72,7 @@ cp HeadsetStatus.desktop ~/.config/autostart/
 
 This will ensure HeadsetStatus starts with your session.
 
-### Example `HeadsetStatus.desktop`
+### Example `HeadsetStatus.desktop` (This is also in the repo)
 ```ini
 [Desktop Entry]
 Type=Application
