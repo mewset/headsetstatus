@@ -28,26 +28,23 @@ HeadsetStatus works with most Linux desktop environments and status bars, includ
 - XFCE
 - ...and more
 
-## Build Instructions
+## Installation
+
+You can install HeadsetStatus from the AUR using your favorite AUR helper:
 
 ```bash
-# Install dependencies (example for Arch Linux)
-sudo pacman -S qt6-base qt6-tools qt6-declarative cmake upower ttf-font-awesome
+# With yay:
+yay -S headsetstatus
 
-# Clone the repository
-git clone https://github.com/mewset/headsetstatus.git
-cd headsetstatus
-
-# Build (Release mode recommended)
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build --config Release
-
-# Run
-./build/HeadsetStatus
+# Or with paru:
+paru -S headsetstatus
 ```
 
-## Install (Optional)
-You can copy the binary to a directory in your PATH, or create a `.desktop` file for autostart.
+If HeadsetStatus is added to the official repositories in the future, you will be able to install it with:
+
+```bash
+sudo pacman -S headsetstatus
+```
 
 ## Autostart on Boot
 To start HeadsetStatus automatically when you log in:
