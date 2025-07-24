@@ -45,10 +45,10 @@ public:
 
         int fontId = QFontDatabase::addApplicationFont("/usr/share/fonts/TTF/fa-solid-900.ttf");
     if (fontId == -1) {
-        qWarning() << "Kunde inte ladda Font Awesome fonten!";
+        qWarning() << "Could not load Font Awesome font";
     } else {
         QString family = QFontDatabase::applicationFontFamilies(fontId).at(0);
-        qDebug() << "Font Awesome laddad med familjenamn:" << family;
+        qDebug() << "Font Awesome loaded with family name:" << family;
         faFont = QFont(family); // Store in faFont
         faFont.setPointSize(16);
         QApplication::setFont(faFont);
