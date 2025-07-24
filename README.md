@@ -96,6 +96,7 @@ Pull requests and issues are welcome! Please:
 - Use clear commit messages
 - Follow the existing code style
 - Test on your system before submitting
+- AI generated code is FINE, but i welcome actual human code more
 
 ---
 
