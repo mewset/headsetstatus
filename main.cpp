@@ -10,6 +10,7 @@
 #include <QObject>
 #include <QDBusReply>
 #include <QPainter>
+#include <QMessageBox>
 
 class DBusListener : public QObject {
     Q_OBJECT
@@ -36,6 +37,14 @@ public:
     HeadsetStatusApp() {
         trayIcon = new QSystemTrayIcon();
         trayMenu = new QMenu();
+
+        QAction *infoAction = new QAction("Information");
+        QObject::connect(infoAction, &QAction::triggered, this, &HeadsetStatusApp::showInformation);
+        trayMenu->addAction(infoAction);
+
+        QAction *aboutAction = new QAction("About");
+        QObject::connect(aboutAction, &QAction::triggered, this, &HeadsetStatusApp::showAbout);
+        trayMenu->addAction(aboutAction);
 
         QAction *quitAction = new QAction("Quit");
         QObject::connect(quitAction, &QAction::triggered, qApp, &QApplication::quit);
@@ -154,6 +163,21 @@ private slots:
         lastDeviceCount = deviceCount;
         trayIcon->setToolTip(tooltip);
         setTrayIconIconText(iconText, deviceCount);
+    }
+
+    void showInformation() {
+        QMessageBox::information(trayMenu, "Headset Information", trayIcon->toolTip());
+    }
+
+    void showAbout() {
+        QMessageBox::about(trayMenu, "About HeadsetStatus",
+            "<b>HeadsetStatus</b><br>"
+            "Version 1.0.2<br>"
+            "A fast Linux tray app for headset battery and connection status.<br>"
+            "<a href='https://github.com/mewset/headsetstatus'>GitHub</a><br>"
+            "License: MIT<br><br>"
+            "&copy; 2025 mewset"
+        );
     }
 
 private:
