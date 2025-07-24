@@ -72,11 +72,6 @@ cp HeadsetStatus.desktop ~/.config/autostart/
 
 This will ensure HeadsetStatus starts with your session.
 
-## Packaging
-- For distribution, consider creating a `.deb`, `.rpm`, or AppImage package.
-- Ensure the FontAwesome font is present on the target system.
-- Provide a `.desktop` file for desktop integration (see below for an example).
-
 ### Example `HeadsetStatus.desktop`
 ```ini
 [Desktop Entry]
