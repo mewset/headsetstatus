@@ -90,6 +90,9 @@ Pull requests and issues are welcome! Please:
 - Test on your system before submitting
 - AI generated code is FINE, but i welcome actual human code more
 
+## Why
+I created this project because i wanted a fast way of seeing the batterystatus of my Jabra Evolve2 85. It was a VERY long time ago i coded in C/C++ (15+ years) so the source can most likely be optimized and worked upon and making it more readable and clearer.
+
 ---
 
 **Enjoy fast, reliable headset status in your Linux tray!** 
