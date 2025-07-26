@@ -10,8 +10,6 @@ find_package(Qt6 REQUIRED COMPONENTS Core Widgets DBus)
 # Lägg till källkod
 set(SOURCES
     main.cpp
-    src/HeadsetManager.cpp
-    src/TrayIconController.cpp
 )
 
 # Skapa körbar fil
