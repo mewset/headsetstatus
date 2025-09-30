@@ -1,23 +1,29 @@
 # HeadsetStatus
 
-A lightweight, fast, and modern Linux system tray application that displays the battery and connection status of your wireless and USB headsets. Supports multiple devices, FontAwesome tray icons, and D-Bus integration for real-time updates.
+A lightweight, fast, and modern Linux system tray application that displays the battery and connection status of your wireless and USB headsets. Supports multiple devices, desktop notifications, and D-Bus integration for real-time updates.
 
 ## Features
-- **System tray icon** with FontAwesome symbols
-- **Multiple headset support**: shows a count if more than one device is connected
+- **System tray icon** with native emoji rendering (🎧⚡⚠️🔌🪫)
+- **Desktop notifications** for low battery, charging complete, and device disconnect
+- **Configurable settings** with persistent configuration file
+- **Multiple headset support**:
+  - Shows device count badge on icon
+  - **Dedicated submenu** with individual device status (when 2+ devices)
+  - Per-device details with battery, connection type, and technical info
 - **Real-time updates** via D-Bus (UPower)
-- **Supports Bluetooth and USB headsets**
+- **Supports Bluetooth and USB headsets** from major vendors (Jabra, Bose, Sony, etc.)
 - **Battery and charging status** in tooltip
 - **Fast and efficient** (minimal resource usage)
 - **Works with Hyprland and swaybar** (Wayland compositors/status bars)
+- **Notification daemon support**: libnotify, swaync, mako, dunst
 
 
 ## Requirements
 - Linux (tested on Arch Linux, should work on most modern distros)
 - Qt6 (Core, Widgets, DBus)
 - CMake >= 3.16
-- FontAwesome TTF font (e.g., `/usr/share/fonts/TTF/fa-solid-900.ttf`)
 - UPower running and accessible on the system bus
+- (Optional) Notification daemon for desktop notifications (libnotify, swaync, mako, dunst)
 
 ## Compatibility
 HeadsetStatus works with most Linux desktop environments and status bars, including:
@@ -90,8 +96,35 @@ Pull requests and issues are welcome! Please:
 - Test on your system before submitting
 - AI generated code is FINE, but i welcome actual human code more
 
+## Configuration
+
+HeadsetStatus stores its configuration in `~/.config/headsetstatus/config.ini`. You can configure:
+
+- **Notifications**: Enable/disable desktop notifications
+- **Low battery threshold**: Set the battery percentage for low battery warnings (default: 20%)
+- **Notification types**: Choose which events trigger notifications
+  - Low battery warnings
+  - Charging complete notifications
+  - Device disconnect notifications
+
+Access settings via the tray icon context menu → **Settings**.
+
+## Supported Headsets
+
+HeadsetStatus automatically detects headsets from major vendors including:
+- Jabra (Evolve, Elite series)
+- Bose (QuietComfort, etc.)
+- Sony (WH-, WF- series)
+- Sennheiser, JBL, Beats
+- HyperX, SteelSeries, Razer, Logitech, Corsair
+- AirPods, Galaxy Buds, Pixel Buds
+- And many more...
+
+If your headset isn't detected, please open an issue on GitHub.
+
 ## Why
-I created this project because i wanted a fast way of seeing the batterystatus of my Jabra Evolve2 85. It was a VERY long time ago i coded in C/C++ (15+ years) so the source can most likely be optimized and worked upon and making it more readable and clearer.
+
+I created this project because I wanted a fast way of seeing the battery status of my Jabra Evolve2 85. The code has been refactored to follow modern C++ best practices with comprehensive documentation.
 
 ---
 

@@ -1,6 +1,5 @@
 #include "TrayIconController.h"
 #include <QAction>
-#include <QFontDatabase>
 #include <QPainter>
 #include <QMessageBox>
 #include <QApplication>
@@ -9,13 +8,21 @@
 #include <QTimer>
 #include <QKeyEvent>
 
-TrayIconController::TrayIconController(QObject *parent) : QObject(parent) {
+TrayIconController::TrayIconController(QObject *parent) : QObject(parent), m_devicesMenu(nullptr) {
     m_trayIcon = new QSystemTrayIcon();
     m_trayMenu = new QMenu();
+
+    // Devices submenu will be added dynamically in updateIcon()
 
     QAction *infoAction = new QAction("Information");
     QObject::connect(infoAction, &QAction::triggered, this, &TrayIconController::informationRequested);
     m_trayMenu->addAction(infoAction);
+
+    QAction *settingsAction = new QAction("Settings");
+    QObject::connect(settingsAction, &QAction::triggered, this, &TrayIconController::settingsRequested);
+    m_trayMenu->addAction(settingsAction);
+
+    m_trayMenu->addSeparator();
 
     QAction *aboutAction = new QAction("About");
     QObject::connect(aboutAction, &QAction::triggered, this, &TrayIconController::aboutRequested);
@@ -27,25 +34,14 @@ TrayIconController::TrayIconController(QObject *parent) : QObject(parent) {
 
     m_trayIcon->setContextMenu(m_trayMenu);
 
-    int fontId = QFontDatabase::addApplicationFont("/usr/share/fonts/TTF/fa-solid-900.ttf");
-    if (fontId == -1) {
-        qWarning() << "Could not load Font Awesome font";
-    } else {
-        QString family = QFontDatabase::applicationFontFamilies(fontId).at(0);
-        qDebug() << "Font Awesome loaded with family name:" << family;
-        faFont = QFont(family);
-        faFont.setPointSize(16);
-        QApplication::setFont(faFont);
-    }
-
     // Konami code setup
     konamiTimer = new QTimer(this);
     konamiTimer->setSingleShot(true);
     konamiTimer->setInterval(3000); // 3 seconds timeout
     connect(konamiTimer, &QTimer::timeout, this, &TrayIconController::resetKonamiCode);
-    
+
     // Konami code sequence: ↑↑↓↓←→←→BA
-    konamiSequence = {Qt::Key_Up, Qt::Key_Up, Qt::Key_Down, Qt::Key_Down, 
+    konamiSequence = {Qt::Key_Up, Qt::Key_Up, Qt::Key_Down, Qt::Key_Down,
                       Qt::Key_Left, Qt::Key_Right, Qt::Key_Left, Qt::Key_Right,
                       Qt::Key_B, Qt::Key_A};
     konamiIndex = 0;
@@ -83,14 +79,18 @@ void TrayIconController::resetKonamiCode() {
 
 void TrayIconController::updateIcon(const QList<HeadsetDevice>& devices) {
     int deviceCount = devices.size();
+
+    // Rebuild devices menu
+    rebuildDevicesMenu(devices);
+
     if (devices.isEmpty()) {
-        setTrayIconIconText("", 0);
+        setTrayIconFromEmoji("", 0);
         setTooltip("No headset found");
         return;
     }
 
     QStringList tooltips;
-    QString iconText;
+    QString emoji;
     bool anyWarning = false;
     bool anyCharging = false;
     bool anyUSB = false;
@@ -113,19 +113,20 @@ void TrayIconController::updateIcon(const QList<HeadsetDevice>& devices) {
         tooltips << QString("%1\nConnection: %2\nBattery: %3").arg(device.model).arg(device.connectionType).arg(status);
     }
 
+    // Select appropriate emoji based on device state
     if (anyWarning) {
-        iconText = "⚠"; // warning icon
+        emoji = "⚠️";
     } else if (anyCharging) {
-        iconText = "⚡"; // bolt icon (charging)
+        emoji = "⚡";
     } else if (anyUSB) {
-        iconText = "🔌"; // USB icon
+        emoji = "🔌";
     } else {
-        iconText = "🎧"; // headphones icon
+        emoji = "🎧";
     }
 
     QString tooltip = tooltips.join("\n\n");
     setTooltip(tooltip);
-    setTrayIconIconText(iconText, deviceCount);
+    setTrayIconFromEmoji(emoji, deviceCount);
 }
 
 void TrayIconController::setTooltip(const QString& text) {
@@ -140,23 +141,117 @@ QMenu* TrayIconController::trayMenu() const {
     return m_trayMenu;
 }
 
-void TrayIconController::setTrayIconIconText(const QString &text, int deviceCount) {
-    QSize size(24,24);
+void TrayIconController::setTrayIconFromEmoji(const QString &emoji, int deviceCount) {
+    QSize size(32, 32);
     QPixmap pixmap(size);
     pixmap.fill(Qt::transparent);
+
     QPainter painter(&pixmap);
     painter.setRenderHint(QPainter::Antialiasing);
-    painter.setFont(faFont);
+    painter.setRenderHint(QPainter::TextAntialiasing);
+
+    // Use system font for emoji rendering
+    QFont emojiFont = QFont();
+    emojiFont.setPointSize(18);
+    painter.setFont(emojiFont);
     painter.setPen(Qt::white);
-    painter.drawText(pixmap.rect(), Qt::AlignCenter, text);
+
+    // Draw emoji centered
+    painter.drawText(pixmap.rect(), Qt::AlignCenter, emoji);
+
+    // Draw device count badge if multiple devices
     if (deviceCount > 1) {
-        QFont countFont = faFont;
+        QFont countFont = QFont();
         countFont.setPointSize(10);
+        countFont.setBold(true);
         painter.setFont(countFont);
-        QRect countRect(size.width() - 14, size.height() - 16, 16, 16);
+
+        QRect countRect(size.width() - 16, size.height() - 14, 16, 14);
         painter.setPen(Qt::yellow);
         painter.drawText(countRect, Qt::AlignRight | Qt::AlignBottom, QString::number(deviceCount));
     }
+
     painter.end();
     m_trayIcon->setIcon(QIcon(pixmap));
+}
+
+QString TrayIconController::getDeviceEmoji(const HeadsetDevice& device) const {
+    if (!device.isPresent) {
+        return "⚠️";
+    } else if (device.battery < 20 && !device.isCharging) {
+        return "🪫"; // Low battery
+    } else if (device.isCharging) {
+        return "⚡";
+    } else if (device.connectionType == "USB") {
+        return "🔌";
+    } else {
+        return "🎧";
+    }
+}
+
+void TrayIconController::rebuildDevicesMenu(const QList<HeadsetDevice>& devices) {
+    // Remove old devices menu if it exists
+    if (m_devicesMenu) {
+        m_trayMenu->removeAction(m_devicesMenu->menuAction());
+        m_devicesMenu->deleteLater();
+        m_devicesMenu = nullptr;
+    }
+
+    // Only create devices menu if we have multiple devices
+    if (devices.size() > 1) {
+        m_devicesMenu = new QMenu("Connected Devices");
+
+        for (const HeadsetDevice& device : devices) {
+            // Create submenu for each device
+            QMenu *deviceSubmenu = m_devicesMenu->addMenu(
+                QString("%1 %2").arg(getDeviceEmoji(device)).arg(device.model)
+            );
+
+            // Battery status
+            QString batteryStatus;
+            if (!device.isPresent) {
+                batteryStatus = "Not present";
+            } else if (device.isCharging) {
+                batteryStatus = QString("%1% (Charging)").arg(int(device.battery));
+            } else if (device.battery < 20) {
+                batteryStatus = QString("%1% (Low)").arg(int(device.battery));
+            } else {
+                batteryStatus = QString("%1%").arg(int(device.battery));
+            }
+
+            QAction *batteryAction = new QAction(QString("Battery: %1").arg(batteryStatus));
+            batteryAction->setEnabled(false);
+            deviceSubmenu->addAction(batteryAction);
+
+            // Connection type
+            QAction *connectionAction = new QAction(QString("Connection: %1").arg(device.connectionType));
+            connectionAction->setEnabled(false);
+            deviceSubmenu->addAction(connectionAction);
+
+            // Charging status
+            if (device.isPresent) {
+                QAction *chargingAction = new QAction(
+                    device.isCharging ? "Status: Charging" : "Status: On Battery"
+                );
+                chargingAction->setEnabled(false);
+                deviceSubmenu->addAction(chargingAction);
+            }
+
+            // Add separator before action buttons
+            deviceSubmenu->addSeparator();
+
+            // Show details action
+            QAction *detailsAction = new QAction("Show Details");
+            QString dbusPath = device.dbusPath; // Capture by value
+            connect(detailsAction, &QAction::triggered, [this, dbusPath]() {
+                emit deviceDetailsRequested(dbusPath);
+            });
+            deviceSubmenu->addAction(detailsAction);
+        }
+
+        // Insert devices menu at the top of the menu
+        QAction *firstAction = m_trayMenu->actions().first();
+        m_trayMenu->insertMenu(firstAction, m_devicesMenu);
+        m_trayMenu->insertSeparator(firstAction);
+    }
 } 
