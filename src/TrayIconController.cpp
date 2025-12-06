@@ -100,7 +100,7 @@ void TrayIconController::updateIcon(const QList<HeadsetDevice>& devices) {
         if (!device.isPresent) {
             status = "(Not present)";
             anyWarning = true;
-        } else if (device.battery < 20) {
+        } else if (device.battery < m_lowBatteryThreshold) {
             status = QString("%1% (Low)").arg(int(device.battery));
             anyWarning = true;
         } else if (device.isCharging) {
@@ -131,6 +131,10 @@ void TrayIconController::updateIcon(const QList<HeadsetDevice>& devices) {
 
 void TrayIconController::setTooltip(const QString& text) {
     m_trayIcon->setToolTip(text);
+}
+
+void TrayIconController::setLowBatteryThreshold(int threshold) {
+    m_lowBatteryThreshold = qBound(0, threshold, 100);
 }
 
 QSystemTrayIcon* TrayIconController::trayIcon() const {
@@ -178,7 +182,7 @@ void TrayIconController::setTrayIconFromEmoji(const QString &emoji, int deviceCo
 QString TrayIconController::getDeviceEmoji(const HeadsetDevice& device) const {
     if (!device.isPresent) {
         return "⚠️";
-    } else if (device.battery < 20 && !device.isCharging) {
+    } else if (device.battery < m_lowBatteryThreshold && !device.isCharging) {
         return "🪫"; // Low battery
     } else if (device.isCharging) {
         return "⚡";
@@ -213,7 +217,7 @@ void TrayIconController::rebuildDevicesMenu(const QList<HeadsetDevice>& devices)
                 batteryStatus = "Not present";
             } else if (device.isCharging) {
                 batteryStatus = QString("%1% (Charging)").arg(int(device.battery));
-            } else if (device.battery < 20) {
+            } else if (device.battery < m_lowBatteryThreshold) {
                 batteryStatus = QString("%1% (Low)").arg(int(device.battery));
             } else {
                 batteryStatus = QString("%1%").arg(int(device.battery));

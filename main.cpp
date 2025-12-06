@@ -58,9 +58,10 @@ public:
         notificationManager = new NotificationManager(this);
         listener = new DBusListener(this);
 
-        // Apply config to notification manager
+        // Apply config to managers
         notificationManager->setNotificationsEnabled(configManager->notificationsEnabled());
         notificationManager->setLowBatteryThreshold(configManager->lowBatteryThreshold());
+        trayController->setLowBatteryThreshold(configManager->lowBatteryThreshold());
 
         // Connect to D-Bus for property changes
         bool connected = QDBusConnection::systemBus().connect(
@@ -81,6 +82,9 @@ public:
         connect(trayController, &TrayIconController::settingsRequested, this, &HeadsetStatusApp::showSettings);
         connect(trayController, &TrayIconController::aboutRequested, this, &HeadsetStatusApp::showAbout);
         connect(trayController, &TrayIconController::deviceDetailsRequested, this, &HeadsetStatusApp::showDeviceDetails);
+
+        // Connect config changes (once, not per dialog open)
+        connect(configManager, &ConfigManager::configChanged, this, &HeadsetStatusApp::onConfigChanged);
 
         // Initial status update
         updateStatus();
@@ -126,16 +130,18 @@ private slots:
     }
 
     void showInformation() {
-        QMessageBox::information(trayController->trayMenu(), "Headset Information", trayController->trayIcon()->toolTip());
+        QMessageBox::information(nullptr, "Headset Information", trayController->trayIcon()->toolTip());
+    }
+
+    void onConfigChanged() {
+        // Update notification manager when config changes
+        notificationManager->setNotificationsEnabled(configManager->notificationsEnabled());
+        notificationManager->setLowBatteryThreshold(configManager->lowBatteryThreshold());
+        trayController->setLowBatteryThreshold(configManager->lowBatteryThreshold());
     }
 
     void showSettings() {
-        SettingsDialog *dialog = new SettingsDialog(configManager, trayController->trayMenu());
-        connect(configManager, &ConfigManager::configChanged, [this]() {
-            // Update notification manager when config changes
-            notificationManager->setNotificationsEnabled(configManager->notificationsEnabled());
-            notificationManager->setLowBatteryThreshold(configManager->lowBatteryThreshold());
-        });
+        SettingsDialog *dialog = new SettingsDialog(configManager, nullptr);
         dialog->exec();
         dialog->deleteLater();
     }
@@ -155,7 +161,7 @@ private slots:
         }
 
         if (!found) {
-            QMessageBox::warning(trayController->trayMenu(), "Device Not Found",
+            QMessageBox::warning(nullptr, "Device Not Found",
                 "The selected device is no longer connected.");
             return;
         }
@@ -171,13 +177,13 @@ private slots:
         details += QString("<small>D-Bus Path: %1<br>").arg(targetDevice.dbusPath);
         details += QString("Native Path: %1</small>").arg(targetDevice.nativePath);
 
-        QMessageBox::information(trayController->trayMenu(),
+        QMessageBox::information(nullptr,
             QString("Device Details: %1").arg(targetDevice.model),
             details);
     }
 
     void showAbout() {
-        QMessageBox *aboutBox = new QMessageBox(trayController->trayMenu());
+        QMessageBox *aboutBox = new QMessageBox();
         aboutBox->setWindowTitle("About HeadsetStatus");
         aboutBox->setTextFormat(Qt::RichText);
         aboutBox->setText(QString("<b>HeadsetStatus</b><br>"

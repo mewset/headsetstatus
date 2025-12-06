@@ -22,13 +22,6 @@ public:
      */
     QList<HeadsetDevice> getDevices();
 
-signals:
-    /**
-     * @brief Emitted when the list of connected devices changes
-     */
-    void devicesChanged();
-
-private:
     /**
      * @brief Checks if a device model name matches known headset patterns
      * @param model Device model string from UPower
@@ -37,6 +30,13 @@ private:
      */
     bool isHeadsetDevice(const QString& model, const QString& path) const;
 
+signals:
+    /**
+     * @brief Emitted when the list of connected devices changes
+     */
+    void devicesChanged();
+
+private:
     // Known headset vendor keywords for improved detection
     static const QSet<QString> s_headsetKeywords;
 }; 

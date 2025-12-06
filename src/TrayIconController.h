@@ -32,6 +32,12 @@ public:
      */
     void setTooltip(const QString& text);
 
+    /**
+     * @brief Sets the low battery threshold for warning indicators
+     * @param threshold Battery percentage threshold (0-100)
+     */
+    void setLowBatteryThreshold(int threshold);
+
     QSystemTrayIcon* trayIcon() const;
     QMenu* trayMenu() const;
     bool eventFilter(QObject *obj, QEvent *event) override;
@@ -50,6 +56,7 @@ private:
     QMenu *m_trayMenu;
     QMenu *m_devicesMenu;
     QTimer *konamiTimer;
+    int m_lowBatteryThreshold = 20;
     QList<int> konamiSequence;
     int konamiIndex;
 
