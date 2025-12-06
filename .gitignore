@@ -28,5 +28,12 @@ compile_commands.json
 *.bak
 *.tmp
 
+# Package build artifacts
+*.tar.gz
+*.tar.zst
+*.pkg.tar.zst
+pkg/
+src/headsetstatus-*/
+
 # Other
 *.log 
