@@ -1,0 +1,14 @@
+[Unit]
+Description=Headset Battery Status Monitor
+Documentation=https://github.com/mewset/headsetstatus
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/HeadsetStatus --no-tray
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

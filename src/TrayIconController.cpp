@@ -1,11 +1,9 @@
 #include "TrayIconController.h"
 #include <QAction>
 #include <QPainter>
-#include <QMessageBox>
 #include <QApplication>
 #include <QDesktopServices>
 #include <QUrl>
-#include <QTimer>
 #include <QKeyEvent>
 
 TrayIconController::TrayIconController(QObject *parent) : QObject(parent), m_devicesMenu(nullptr) {

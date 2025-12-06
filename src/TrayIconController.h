@@ -2,11 +2,10 @@
 #include <QObject>
 #include <QSystemTrayIcon>
 #include <QMenu>
-#include <QKeyEvent>
 #include <QTimer>
-#include <QDesktopServices>
-#include <QUrl>
 #include "HeadsetDevice.h"
+
+class QKeyEvent;
 
 /**
  * @class TrayIconController

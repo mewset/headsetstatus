@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2025-12-06
+
+### Added
+- **Headless mode** (`--no-tray`) - Run without system tray, notifications only
+- **CLI arguments**: `--version`, `--help`, `--no-tray`, `--debug`
+- **Systemd user service** for auto-start on login
+- Device disconnect notifications (previously broken, now working)
+
+### Changed
+- Binary size reduced by 91% (431 KB → 39 KB) via demoscene-inspired optimizations
+- Consolidated D-Bus includes for cleaner code
+- Removed unused QMessageBox include from TrayIconController
+
+### Fixed
+- Device disconnect notification was implemented but never triggered
+- Signal-slot connection leak when opening settings dialog repeatedly
+
+### Technical
+- Demoscene-inspired size optimizations:
+  - Link Time Optimization (LTO)
+  - `-fvisibility=hidden` for symbol hiding
+  - `-ffunction-sections -fdata-sections` with `--gc-sections`
+  - Automatic binary stripping
+  - UPX LZMA compression (if available)
+- Cleaner include structure with forward declarations
+
 ## [1.1.0] - 2025-09-30
 
 ### Added

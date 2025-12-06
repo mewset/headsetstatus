@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(HeadsetStatus VERSION 1.1.0 LANGUAGES CXX)
+project(HeadsetStatus VERSION 1.2.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -14,6 +14,22 @@ endif()
 # Platform check - HeadsetStatus requires Linux with D-Bus
 if(NOT UNIX OR APPLE)
     message(FATAL_ERROR "HeadsetStatus requires Linux with D-Bus/UPower")
+endif()
+
+# Release optimizations (demoscene-inspired)
+if(CMAKE_BUILD_TYPE STREQUAL "Release")
+    # Link Time Optimization
+    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION ON)
+
+    # Optimize for size
+    add_compile_options(-Os)
+
+    # Hide symbols by default (reduces binary size)
+    add_compile_options(-fvisibility=hidden)
+
+    # Put functions/data in separate sections for garbage collection
+    add_compile_options(-ffunction-sections -fdata-sections)
+    add_link_options(-Wl,--gc-sections)
 endif()
 
 # Generate version header
@@ -53,6 +69,23 @@ set_target_properties(HeadsetStatus PROPERTIES AUTOMOC ON)
 # Installation targets
 install(TARGETS HeadsetStatus DESTINATION bin)
 install(FILES HeadsetStatus.desktop DESTINATION share/applications)
+install(FILES headsetstatus.service DESTINATION lib/systemd/user)
+
+# Strip and compress binary in release mode
+if(CMAKE_BUILD_TYPE STREQUAL "Release")
+    # Strip all symbols
+    add_custom_command(TARGET HeadsetStatus POST_BUILD
+        COMMAND ${CMAKE_STRIP} --strip-all $<TARGET_FILE:HeadsetStatus>
+        COMMENT "Stripping binary...")
+
+    # UPX compression (if available)
+    find_program(UPX_EXECUTABLE upx)
+    if(UPX_EXECUTABLE)
+        add_custom_command(TARGET HeadsetStatus POST_BUILD
+            COMMAND ${UPX_EXECUTABLE} --best --lzma $<TARGET_FILE:HeadsetStatus>
+            COMMENT "Compressing with UPX...")
+    endif()
+endif()
 
 # Testing support
 option(BUILD_TESTS "Build unit tests" OFF)
