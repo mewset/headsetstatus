@@ -17,7 +17,7 @@
 
 ---
 
-A fast, minimal system tray app that shows battery and connection status for wireless/USB headsets. Real-time updates via D-Bus, desktop notifications, and only **39 KB** thanks to demoscene-inspired optimizations.
+A fast, minimal system tray app that shows battery and connection status for wireless/USB headsets. Real-time updates via D-Bus, desktop notifications, and only **39 KB**
 
 ## Features
 
@@ -179,18 +179,6 @@ HeadsetStatus/
 | Build | CMake 3.16+ |
 | Size | 39 KB (LTO + UPX) |
 | Tests | Qt Test |
-
-### Size Optimizations
-
-Demoscene-inspired techniques for minimal binary:
-
-- **LTO** (Link Time Optimization)
-- **Symbol hiding** (`-fvisibility=hidden`)
-- **Section garbage collection** (`-ffunction-sections -fdata-sections`)
-- **Binary stripping** (all symbols removed)
-- **UPX LZMA compression** (if available)
-
-Result: 431 KB → **39 KB** (91% reduction)
 
 ## Contributing
 
