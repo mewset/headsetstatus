@@ -135,6 +135,9 @@ lowBatteryThreshold=20
 notifyOnLowBattery=true
 notifyOnChargingComplete=true
 notifyOnDisconnect=true
+
+[general]
+updateInterval=30000
 ```
 
 ## Supported Headsets

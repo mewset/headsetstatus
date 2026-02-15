@@ -7,26 +7,26 @@
 #include <QKeyEvent>
 
 TrayIconController::TrayIconController(QObject *parent) : QObject(parent), m_devicesMenu(nullptr) {
-    m_trayIcon = new QSystemTrayIcon();
+    m_trayIcon = new QSystemTrayIcon(this);
     m_trayMenu = new QMenu();
 
     // Devices submenu will be added dynamically in updateIcon()
 
-    QAction *infoAction = new QAction("Information");
+    QAction *infoAction = new QAction("Information", m_trayMenu);
     QObject::connect(infoAction, &QAction::triggered, this, &TrayIconController::informationRequested);
     m_trayMenu->addAction(infoAction);
 
-    QAction *settingsAction = new QAction("Settings");
+    QAction *settingsAction = new QAction("Settings", m_trayMenu);
     QObject::connect(settingsAction, &QAction::triggered, this, &TrayIconController::settingsRequested);
     m_trayMenu->addAction(settingsAction);
 
     m_trayMenu->addSeparator();
 
-    QAction *aboutAction = new QAction("About");
+    QAction *aboutAction = new QAction("About", m_trayMenu);
     QObject::connect(aboutAction, &QAction::triggered, this, &TrayIconController::aboutRequested);
     m_trayMenu->addAction(aboutAction);
 
-    QAction *quitAction = new QAction("Quit");
+    QAction *quitAction = new QAction("Quit", m_trayMenu);
     QObject::connect(quitAction, &QAction::triggered, qApp, &QApplication::quit);
     m_trayMenu->addAction(quitAction);
 
@@ -77,9 +77,12 @@ void TrayIconController::resetKonamiCode() {
 
 void TrayIconController::updateIcon(const QList<HeadsetDevice>& devices) {
     int deviceCount = devices.size();
+    const quint64 devicesSignatureHash = buildDeviceStateSignatureHash(devices);
 
-    // Rebuild devices menu
-    rebuildDevicesMenu(devices);
+    if (devicesSignatureHash != m_lastDevicesSignatureHash) {
+        rebuildDevicesMenu(devices);
+        m_lastDevicesSignatureHash = devicesSignatureHash;
+    }
 
     if (devices.isEmpty()) {
         setTrayIconFromEmoji("", 0);
@@ -128,6 +131,11 @@ void TrayIconController::updateIcon(const QList<HeadsetDevice>& devices) {
 }
 
 void TrayIconController::setTooltip(const QString& text) {
+    if (text == m_lastTooltip) {
+        return;
+    }
+
+    m_lastTooltip = text;
     m_trayIcon->setToolTip(text);
 }
 
@@ -144,6 +152,13 @@ QMenu* TrayIconController::trayMenu() const {
 }
 
 void TrayIconController::setTrayIconFromEmoji(const QString &emoji, int deviceCount) {
+    if (emoji == m_lastIconEmoji && deviceCount == m_lastDeviceCount) {
+        return;
+    }
+
+    m_lastIconEmoji = emoji;
+    m_lastDeviceCount = deviceCount;
+
     QSize size(32, 32);
     QPixmap pixmap(size);
     pixmap.fill(Qt::transparent);
@@ -177,6 +192,21 @@ void TrayIconController::setTrayIconFromEmoji(const QString &emoji, int deviceCo
     m_trayIcon->setIcon(QIcon(pixmap));
 }
 
+quint64 TrayIconController::buildDeviceStateSignatureHash(const QList<HeadsetDevice>& devices) const {
+    quint64 aggregate = static_cast<quint64>(devices.size()) * 1099511628211ULL;
+
+    for (const HeadsetDevice& device : devices) {
+        const quint64 batteryBucket = static_cast<quint64>(device.battery * 10.0);
+        aggregate ^= qHash(device.dbusPath);
+        aggregate ^= (static_cast<quint64>(qHash(device.model)) << 1);
+        aggregate ^= (batteryBucket << 2);
+        aggregate ^= (device.isCharging ? 0x9e3779b185ebca87ULL : 0ULL);
+        aggregate ^= (device.isPresent ? 0xc2b2ae3d27d4eb4fULL : 0ULL);
+    }
+
+    return aggregate;
+}
+
 QString TrayIconController::getDeviceEmoji(const HeadsetDevice& device) const {
     if (!device.isPresent) {
         return "⚠️";
@@ -202,6 +232,7 @@ void TrayIconController::rebuildDevicesMenu(const QList<HeadsetDevice>& devices)
     // Only create devices menu if we have multiple devices
     if (devices.size() > 1) {
         m_devicesMenu = new QMenu("Connected Devices");
+        m_devicesMenu->setParent(m_trayMenu);
 
         for (const HeadsetDevice& device : devices) {
             // Create submenu for each device

@@ -30,6 +30,9 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release")
     # Put functions/data in separate sections for garbage collection
     add_compile_options(-ffunction-sections -fdata-sections)
     add_link_options(-Wl,--gc-sections)
+
+    # Remove qDebug output and related strings in release binaries
+    add_compile_definitions(QT_NO_DEBUG_OUTPUT)
 endif()
 
 # Generate version header

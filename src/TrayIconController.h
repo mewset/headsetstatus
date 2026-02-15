@@ -3,6 +3,8 @@
 #include <QSystemTrayIcon>
 #include <QMenu>
 #include <QTimer>
+#include <QtGlobal>
+#include <limits>
 #include "HeadsetDevice.h"
 
 class QKeyEvent;
@@ -78,6 +80,12 @@ private:
      * @return Emoji string representing device state
      */
     QString getDeviceEmoji(const HeadsetDevice& device) const;
+    quint64 buildDeviceStateSignatureHash(const QList<HeadsetDevice>& devices) const;
 
     void checkKonamiCode(int key);
-}; 
+
+    QString m_lastTooltip;
+    QString m_lastIconEmoji;
+    int m_lastDeviceCount = -1;
+    quint64 m_lastDevicesSignatureHash = std::numeric_limits<quint64>::max();
+};
