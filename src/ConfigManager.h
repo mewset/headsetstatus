@@ -13,7 +13,7 @@
 class ConfigManager : public QObject {
     Q_OBJECT
 public:
-    explicit ConfigManager(QObject *parent = nullptr);
+    explicit ConfigManager(QObject *parent = nullptr, const QString& configFilePath = QString());
 
     /**
      * @brief Loads configuration from disk
@@ -41,6 +41,9 @@ public:
     void setNotifyOnDisconnect(bool notify);
     void setUpdateInterval(int interval);
 
+    void beginBatchUpdate();
+    void endBatchUpdate();
+
 signals:
     void configChanged();
 
@@ -54,4 +57,8 @@ private:
     bool m_notifyOnChargingComplete;
     bool m_notifyOnDisconnect;
     int m_updateInterval; // in milliseconds
+    int m_batchDepth = 0;
+    bool m_dirty = false;
+
+    void markDirtyAndMaybeSave();
 };

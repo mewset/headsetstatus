@@ -90,11 +90,13 @@ void SettingsDialog::loadSettings() {
 }
 
 void SettingsDialog::saveSettings() {
+    m_configManager->beginBatchUpdate();
     m_configManager->setNotificationsEnabled(m_notificationsEnabledCheckBox->isChecked());
     m_configManager->setNotifyOnLowBattery(m_notifyLowBatteryCheckBox->isChecked());
     m_configManager->setNotifyOnChargingComplete(m_notifyChargingCompleteCheckBox->isChecked());
     m_configManager->setNotifyOnDisconnect(m_notifyDisconnectCheckBox->isChecked());
     m_configManager->setLowBatteryThreshold(m_lowBatteryThresholdSpinBox->value());
+    m_configManager->endBatchUpdate();
 
     accept();
 }

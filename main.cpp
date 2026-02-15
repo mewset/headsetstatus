@@ -3,6 +3,7 @@
 #include <QtDBus>
 #include <QDebug>
 #include <QMessageBox>
+#include <QTimer>
 #include "version.h"
 #include "src/HeadsetManager.h"
 #include "src/TrayIconController.h"
@@ -20,15 +21,27 @@ public:
     explicit DBusListener(QObject *parent = nullptr) : QObject(parent) {}
 
 signals:
-    void headsetStatusChanged();
+    void statusRelevantEvent();
 
 public slots:
-    void propertiesChanged(QString interfaceName, QVariantMap changedProperties, QStringList invalidatedProperties) {
-        Q_UNUSED(interfaceName)
-        Q_UNUSED(changedProperties)
+    void propertiesChanged(const QString& interfaceName,
+                           const QVariantMap& changedProperties,
+                           const QStringList& invalidatedProperties) {
         Q_UNUSED(invalidatedProperties)
-        emit headsetStatusChanged();
+
+        if (interfaceName != "org.freedesktop.UPower.Device") {
+            return;
+        }
+
+        if (changedProperties.contains("Percentage") ||
+            changedProperties.contains("IsCharging") ||
+            changedProperties.contains("IsPresent")) {
+            emit statusRelevantEvent();
+        }
     }
+
+    void deviceAdded(const QDBusObjectPath&) { emit statusRelevantEvent(); }
+    void deviceRemoved(const QDBusObjectPath&) { emit statusRelevantEvent(); }
 };
 
 /**
@@ -67,7 +80,7 @@ public:
 
         // Connect to D-Bus for property changes
         bool connected = QDBusConnection::systemBus().connect(
-            QString(), QString(),
+            "org.freedesktop.UPower", QString(),
             "org.freedesktop.DBus.Properties",
             "PropertiesChanged",
             listener,
@@ -78,8 +91,38 @@ public:
             qWarning() << "Failed to connect to D-Bus PropertiesChanged signal";
         }
 
+        bool addedConnected = QDBusConnection::systemBus().connect(
+            "org.freedesktop.UPower", "/org/freedesktop/UPower",
+            "org.freedesktop.UPower", "DeviceAdded",
+            listener, SLOT(deviceAdded(QDBusObjectPath))
+        );
+
+        if (!addedConnected) {
+            qWarning() << "Failed to connect to UPower DeviceAdded signal";
+        }
+
+        bool removedConnected = QDBusConnection::systemBus().connect(
+            "org.freedesktop.UPower", "/org/freedesktop/UPower",
+            "org.freedesktop.UPower", "DeviceRemoved",
+            listener, SLOT(deviceRemoved(QDBusObjectPath))
+        );
+
+        if (!removedConnected) {
+            qWarning() << "Failed to connect to UPower DeviceRemoved signal";
+        }
+
+        m_updateDebounceTimer = new QTimer(this);
+        m_updateDebounceTimer->setSingleShot(true);
+        m_updateDebounceTimer->setInterval(120);
+        connect(m_updateDebounceTimer, &QTimer::timeout, this, &HeadsetStatusApp::updateStatus);
+
+        m_fallbackPollTimer = new QTimer(this);
+        m_fallbackPollTimer->setSingleShot(false);
+        connect(m_fallbackPollTimer, &QTimer::timeout, this, &HeadsetStatusApp::scheduleStatusUpdate);
+        applyPollingInterval(configManager->updateInterval());
+
         // Connect signals
-        connect(listener, &DBusListener::headsetStatusChanged, this, &HeadsetStatusApp::updateStatus);
+        connect(listener, &DBusListener::statusRelevantEvent, this, &HeadsetStatusApp::scheduleStatusUpdate);
         connect(configManager, &ConfigManager::configChanged, this, &HeadsetStatusApp::onConfigChanged);
 
         if (m_debug) {
@@ -91,8 +134,20 @@ public:
     }
 
 private slots:
+    void scheduleStatusUpdate() {
+        if (!m_updateDebounceTimer->isActive()) {
+            m_updateDebounceTimer->start();
+        }
+    }
+
     void updateStatus() {
         QList<HeadsetDevice> currentDevices = headsetManager->getDevices();
+        QSet<QString> currentPaths;
+        currentPaths.reserve(currentDevices.size());
+
+        for (const HeadsetDevice& device : currentDevices) {
+            currentPaths.insert(device.dbusPath);
+        }
 
         if (m_debug) {
             qDebug() << "Status update: found" << currentDevices.size() << "devices";
@@ -100,25 +155,32 @@ private slots:
 
         // Check for disconnected devices
         if (configManager->notifyOnDisconnect()) {
-            for (const QString& path : m_knownDevices.keys()) {
-                bool stillExists = false;
-                for (const HeadsetDevice& device : currentDevices) {
-                    if (device.dbusPath == path) {
-                        stillExists = true;
-                        break;
-                    }
-                }
-                if (!stillExists) {
-                    // Device disconnected
-                    notificationManager->notifyDeviceDisconnected(m_knownDevices[path]);
-                    m_knownDevices.remove(path);
-                    m_lowBatteryNotified.remove(path);
-                    m_previouslyCharging.remove(path);
+            for (auto it = m_knownDevices.constBegin(); it != m_knownDevices.constEnd(); ++it) {
+                if (!currentPaths.contains(it.key())) {
+                    notificationManager->notifyDeviceDisconnected(it.value());
                 }
             }
         }
 
+        for (auto it = m_lowBatteryNotified.begin(); it != m_lowBatteryNotified.end();) {
+            if (!currentPaths.contains(*it)) {
+                it = m_lowBatteryNotified.erase(it);
+            } else {
+                ++it;
+            }
+        }
+
+        for (auto it = m_previouslyCharging.begin(); it != m_previouslyCharging.end();) {
+            if (!currentPaths.contains(*it)) {
+                it = m_previouslyCharging.erase(it);
+            } else {
+                ++it;
+            }
+        }
+
         // Update device cache
+        m_knownDevices.clear();
+        m_knownDevices.reserve(currentDevices.size());
         for (const HeadsetDevice& device : currentDevices) {
             m_knownDevices[device.dbusPath] = device;
         }
@@ -168,15 +230,30 @@ private slots:
     void onConfigChanged() {
         notificationManager->setNotificationsEnabled(configManager->notificationsEnabled());
         notificationManager->setLowBatteryThreshold(configManager->lowBatteryThreshold());
+        applyPollingInterval(configManager->updateInterval());
         if (trayController) {
             trayController->setLowBatteryThreshold(configManager->lowBatteryThreshold());
         }
     }
 
+    void applyPollingInterval(int intervalMs) {
+        if (intervalMs <= 0) {
+            m_fallbackPollTimer->stop();
+            return;
+        }
+
+        if (m_fallbackPollTimer->interval() != intervalMs) {
+            m_fallbackPollTimer->setInterval(intervalMs);
+        }
+
+        if (!m_fallbackPollTimer->isActive()) {
+            m_fallbackPollTimer->start();
+        }
+    }
+
     void showSettings() {
-        SettingsDialog *dialog = new SettingsDialog(configManager, nullptr);
-        dialog->exec();
-        dialog->deleteLater();
+        SettingsDialog dialog(configManager, nullptr);
+        dialog.exec();
     }
 
     void showDeviceDetails(const QString& dbusPath) {
@@ -221,22 +298,21 @@ private slots:
     }
 
     void showAbout() {
-        QMessageBox *aboutBox = new QMessageBox();
-        aboutBox->setWindowTitle("About HeadsetStatus");
-        aboutBox->setTextFormat(Qt::RichText);
-        aboutBox->setText(QString("<b>HeadsetStatus</b><br>"
+        QMessageBox aboutBox;
+        aboutBox.setWindowTitle("About HeadsetStatus");
+        aboutBox.setTextFormat(Qt::RichText);
+        aboutBox.setText(QString("<b>HeadsetStatus</b><br>"
             "Version %1<br>"
             "A fast Linux tray app for headset battery and connection status.<br>"
             "<a href='https://github.com/mewset/headsetstatus'>GitHub</a><br>"
             "License: MIT<br><br>"
             "&copy; 2025 mewset").arg(HEADSETSTATUS_VERSION));
-        aboutBox->setStandardButtons(QMessageBox::Ok);
+        aboutBox.setStandardButtons(QMessageBox::Ok);
 
         if (trayController) {
-            aboutBox->installEventFilter(trayController);
+            aboutBox.installEventFilter(trayController);
         }
-        aboutBox->exec();
-        aboutBox->deleteLater();
+        aboutBox.exec();
     }
 
 private:
@@ -247,11 +323,14 @@ private:
     NotificationManager *notificationManager;
     ConfigManager *configManager;
     DBusListener *listener;
+    QTimer *m_updateDebounceTimer = nullptr;
+    QTimer *m_fallbackPollTimer = nullptr;
 
     // Track device and notification states
     QHash<QString, HeadsetDevice> m_knownDevices;
     QSet<QString> m_lowBatteryNotified;
     QSet<QString> m_previouslyCharging;
+
 };
 
 int main(int argc, char *argv[]) {

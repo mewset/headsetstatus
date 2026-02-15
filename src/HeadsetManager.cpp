@@ -2,7 +2,6 @@
 #include <QDBusInterface>
 #include <QDBusReply>
 #include <QVariant>
-#include <QDebug>
 
 // Known headset vendor and model keywords for better detection
 const QSet<QString> HeadsetManager::s_headsetKeywords = {
@@ -91,10 +90,6 @@ QList<HeadsetDevice> HeadsetManager::getDevices() {
 
             devices.append(dev);
 
-            qDebug() << "Detected headset:" << dev.model
-                     << "| Battery:" << dev.battery << "%"
-                     << "| Charging:" << dev.isCharging
-                     << "| Type:" << dev.connectionType;
         }
     }
 

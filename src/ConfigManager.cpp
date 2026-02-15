@@ -2,27 +2,38 @@
 #include <QStandardPaths>
 #include <QDir>
 #include <QDebug>
+#include <QFileInfo>
 
-ConfigManager::ConfigManager(QObject *parent)
+ConfigManager::ConfigManager(QObject *parent, const QString& configFilePath)
     : QObject(parent)
     , m_notificationsEnabled(true)
     , m_lowBatteryThreshold(20)
     , m_notifyOnLowBattery(true)
     , m_notifyOnChargingComplete(true)
     , m_notifyOnDisconnect(false)
-    , m_updateInterval(5000) // 5 seconds default
+    , m_updateInterval(30000) // 30 seconds fallback polling
 {
-    // Set up config file path: ~/.config/headsetstatus/config.ini
-    QString configPath = QStandardPaths::writableLocation(QStandardPaths::ConfigLocation);
-    QString appConfigDir = configPath + "/headsetstatus";
+    QString finalConfigPath = configFilePath;
 
-    // Create directory if it doesn't exist
-    QDir dir;
-    if (!dir.exists(appConfigDir)) {
-        dir.mkpath(appConfigDir);
+    if (finalConfigPath.isEmpty()) {
+        QString configPath = QStandardPaths::writableLocation(QStandardPaths::ConfigLocation);
+        QString appConfigDir = configPath + "/headsetstatus";
+
+        QDir dir;
+        if (!dir.exists(appConfigDir)) {
+            dir.mkpath(appConfigDir);
+        }
+
+        finalConfigPath = appConfigDir + "/config.ini";
+    } else {
+        const QString customDirPath = QFileInfo(finalConfigPath).absolutePath();
+        QDir dir;
+        if (!dir.exists(customDirPath)) {
+            dir.mkpath(customDirPath);
+        }
     }
 
-    m_settings = new QSettings(appConfigDir + "/config.ini", QSettings::IniFormat, this);
+    m_settings = new QSettings(finalConfigPath, QSettings::IniFormat, this);
     load();
 }
 
@@ -32,7 +43,7 @@ void ConfigManager::load() {
     m_notifyOnLowBattery = m_settings->value("notifications/notifyOnLowBattery", true).toBool();
     m_notifyOnChargingComplete = m_settings->value("notifications/notifyOnChargingComplete", true).toBool();
     m_notifyOnDisconnect = m_settings->value("notifications/notifyOnDisconnect", false).toBool();
-    m_updateInterval = m_settings->value("general/updateInterval", 5000).toInt();
+    m_updateInterval = m_settings->value("general/updateInterval", 30000).toInt();
 
     qDebug() << "Configuration loaded from:" << m_settings->fileName();
 }
@@ -51,44 +62,68 @@ void ConfigManager::save() {
     emit configChanged();
 }
 
+void ConfigManager::markDirtyAndMaybeSave() {
+    m_dirty = true;
+    if (m_batchDepth == 0) {
+        m_dirty = false;
+        save();
+    }
+}
+
 void ConfigManager::setNotificationsEnabled(bool enabled) {
     if (m_notificationsEnabled != enabled) {
         m_notificationsEnabled = enabled;
-        save();
+        markDirtyAndMaybeSave();
     }
 }
 
 void ConfigManager::setLowBatteryThreshold(int threshold) {
     if (threshold >= 0 && threshold <= 100 && m_lowBatteryThreshold != threshold) {
         m_lowBatteryThreshold = threshold;
-        save();
+        markDirtyAndMaybeSave();
     }
 }
 
 void ConfigManager::setNotifyOnLowBattery(bool notify) {
     if (m_notifyOnLowBattery != notify) {
         m_notifyOnLowBattery = notify;
-        save();
+        markDirtyAndMaybeSave();
     }
 }
 
 void ConfigManager::setNotifyOnChargingComplete(bool notify) {
     if (m_notifyOnChargingComplete != notify) {
         m_notifyOnChargingComplete = notify;
-        save();
+        markDirtyAndMaybeSave();
     }
 }
 
 void ConfigManager::setNotifyOnDisconnect(bool notify) {
     if (m_notifyOnDisconnect != notify) {
         m_notifyOnDisconnect = notify;
-        save();
+        markDirtyAndMaybeSave();
     }
 }
 
 void ConfigManager::setUpdateInterval(int interval) {
     if (interval > 0 && m_updateInterval != interval) {
         m_updateInterval = interval;
+        markDirtyAndMaybeSave();
+    }
+}
+
+void ConfigManager::beginBatchUpdate() {
+    ++m_batchDepth;
+}
+
+void ConfigManager::endBatchUpdate() {
+    if (m_batchDepth == 0) {
+        return;
+    }
+
+    --m_batchDepth;
+    if (m_batchDepth == 0 && m_dirty) {
+        m_dirty = false;
         save();
     }
 }

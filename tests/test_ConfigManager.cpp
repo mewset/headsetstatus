@@ -8,24 +8,29 @@
  * @class TestConfigManager
  * @brief Unit tests for ConfigManager configuration handling
  *
- * Note: ConfigManager uses the user's real config directory.
- * These tests focus on behavior rather than absolute values,
- * and reset values as needed for each test.
+ * Tests use an isolated temporary config file per test case.
  */
 class TestConfigManager : public QObject {
     Q_OBJECT
 
 private:
     ConfigManager *config;
+    QTemporaryDir *tempDir;
+    QString configFilePath;
 
 private slots:
     void init() {
-        config = new ConfigManager(this);
+        tempDir = new QTemporaryDir();
+        QVERIFY(tempDir->isValid());
+        configFilePath = tempDir->path() + "/config.ini";
+        config = new ConfigManager(this, configFilePath);
     }
 
     void cleanup() {
         delete config;
         config = nullptr;
+        delete tempDir;
+        tempDir = nullptr;
     }
 
     // Test setters change values correctly
@@ -184,7 +189,7 @@ private slots:
         config->setLowBatteryThreshold(testValue);
 
         // Create new config instance - should load saved value
-        ConfigManager *config2 = new ConfigManager(this);
+        ConfigManager *config2 = new ConfigManager(this, configFilePath);
         QCOMPARE(config2->lowBatteryThreshold(), testValue);
         delete config2;
 
@@ -217,6 +222,20 @@ private slots:
         // Restore
         config->setLowBatteryThreshold(origThreshold);
         config->setUpdateInterval(origInterval);
+    }
+
+    void testBatchUpdateEmitsSingleSignal() {
+        QSignalSpy spy(config, &ConfigManager::configChanged);
+
+        bool originalNotifications = config->notificationsEnabled();
+        int originalThreshold = config->lowBatteryThreshold();
+
+        config->beginBatchUpdate();
+        config->setNotificationsEnabled(!originalNotifications);
+        config->setLowBatteryThreshold(originalThreshold == 25 ? 30 : 25);
+        config->endBatchUpdate();
+
+        QCOMPARE(spy.count(), 1);
     }
 };
 
