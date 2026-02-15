@@ -44,6 +44,8 @@ TrayIconController::TrayIconController(QObject *parent) : QObject(parent), m_dev
                       Qt::Key_B, Qt::Key_A};
     konamiIndex = 0;
 
+    setTrayIconFromEmoji("🎧", 0);
+    setTooltip("HeadsetStatus");
     m_trayIcon->show();
 }
 
@@ -85,7 +87,7 @@ void TrayIconController::updateIcon(const QList<HeadsetDevice>& devices) {
     }
 
     if (devices.isEmpty()) {
-        setTrayIconFromEmoji("", 0);
+        setTrayIconFromEmoji("🎧", 0);
         setTooltip("No headset found");
         return;
     }
@@ -152,11 +154,13 @@ QMenu* TrayIconController::trayMenu() const {
 }
 
 void TrayIconController::setTrayIconFromEmoji(const QString &emoji, int deviceCount) {
-    if (emoji == m_lastIconEmoji && deviceCount == m_lastDeviceCount) {
+    const QString safeEmoji = emoji.isEmpty() ? QStringLiteral("🎧") : emoji;
+
+    if (safeEmoji == m_lastIconEmoji && deviceCount == m_lastDeviceCount) {
         return;
     }
 
-    m_lastIconEmoji = emoji;
+    m_lastIconEmoji = safeEmoji;
     m_lastDeviceCount = deviceCount;
 
     QSize size(32, 32);
@@ -174,7 +178,7 @@ void TrayIconController::setTrayIconFromEmoji(const QString &emoji, int deviceCo
     painter.setPen(Qt::white);
 
     // Draw emoji centered
-    painter.drawText(pixmap.rect(), Qt::AlignCenter, emoji);
+    painter.drawText(pixmap.rect(), Qt::AlignCenter, safeEmoji);
 
     // Draw device count badge if multiple devices
     if (deviceCount > 1) {
