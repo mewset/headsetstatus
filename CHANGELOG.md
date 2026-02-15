@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.1] - 2026-02-15
+
+### Changed
+- Reduced unnecessary status updates by tightening UPower D-Bus filtering and adding update coalescing.
+- Added fallback polling via `general/updateInterval` so missed D-Bus events recover automatically.
+- Improved tray update efficiency by skipping redundant tooltip/icon/menu rebuilds when state is unchanged.
+
+### Fixed
+- Settings save now batches writes into one sync instead of multiple disk writes.
+- Unit tests for `ConfigManager` now use isolated temporary config files instead of user config paths.
+
+### Technical
+- Release builds now define `QT_NO_DEBUG_OUTPUT` to strip debug output strings.
+- General cleanup for object lifetimes and simpler UI dialog ownership.
+
 ## [1.2.0] - 2025-12-06
 
 ### Added

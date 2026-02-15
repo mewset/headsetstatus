@@ -210,12 +210,12 @@ ctest --test-dir build --output-on-failure
 
 See [CHANGELOG.md](CHANGELOG.md) for version history.
 
-### Recent Changes (v1.2.0)
+### Recent Changes (v1.2.1)
 
-- Headless mode (`--no-tray`)
-- CLI arguments: `--version`, `--help`, `--no-tray`, `--debug`
-- Systemd user service
-- 91% binary size reduction (431 KB → 39 KB)
+- Tighter UPower D-Bus filtering + coalesced status updates
+- Fallback polling via `general/updateInterval` for missed events
+- Batched settings writes (single sync per save)
+- Tray update cache to skip redundant redraws
 
 ## Support
 
