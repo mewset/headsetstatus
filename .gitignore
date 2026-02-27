@@ -40,5 +40,5 @@ src/headsetstatus-*/
 *.log
 
 # Local tooling and docs
-.serena/
+/.serena/
 docs/
