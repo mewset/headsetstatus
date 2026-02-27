@@ -33,27 +33,34 @@ jobs:
         run: |
           VERSION=${{ steps.version.outputs.VERSION }}
           TARBALL_URL="https://github.com/${{ github.repository }}/archive/refs/tags/v${VERSION}.tar.gz"
-          curl -fsSL "$TARBALL_URL" -o "headsetstatus-${VERSION}.tar.gz"
+          for i in 1 2 3 4 5; do
+            curl -fsSL "$TARBALL_URL" -o "headsetstatus-${VERSION}.tar.gz" && break
+            echo "Attempt $i failed, retrying in 10s..."
+            sleep 10
+          done
           SHA256=$(sha256sum "headsetstatus-${VERSION}.tar.gz" | cut -d' ' -f1)
           sed -i "s/sha256sums=('[^']*')/sha256sums=('${SHA256}')/" PKGBUILD
+          if ! grep -q "${SHA256}" PKGBUILD; then
+            echo "ERROR: sha256sum substitution failed - check PKGBUILD format" >&2
+            exit 1
+          fi
           echo "Updated sha256sum to: $SHA256"
 
       - name: Extract changelog section
-        id: changelog
         run: |
           VERSION=${{ steps.version.outputs.VERSION }}
-          NOTES=$(awk "/^## \[${VERSION}\]/{found=1; next} found && /^## \[/{exit} found{print}" CHANGELOG.md | sed '/^[[:space:]]*$/d' | head -50)
-          {
-            echo "NOTES<<EOF"
-            echo "$NOTES"
-            echo "EOF"
-          } >> $GITHUB_OUTPUT
+          NOTES=$(awk "/^## \[${VERSION}\]/{found=1; next} found && /^## \[/{exit} found{print}" CHANGELOG.md | sed '/^[[:space:]]*$/d' | head -100)
+          if [ -z "$NOTES" ]; then
+            echo "WARNING: No changelog entry found for version ${VERSION}" >&2
+            NOTES="No changelog entry found for ${VERSION}."
+          fi
+          printf '%s\n' "$NOTES" > /tmp/release_notes.md
 
       - name: Create GitHub Release
         run: |
           gh release create "${{ github.ref_name }}" \
             --title "${{ github.ref_name }}" \
-            --notes "${{ steps.changelog.outputs.NOTES }}" \
+            --notes-file /tmp/release_notes.md \
             build/HeadsetStatus \
             PKGBUILD
         env:
