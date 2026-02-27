@@ -37,4 +37,8 @@ pkg/
 src/headsetstatus-*/
 
 # Other
-*.log 
+*.log
+
+# Local tooling and docs
+.serena/
+docs/
