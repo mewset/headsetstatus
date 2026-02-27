@@ -42,3 +42,4 @@ src/headsetstatus-*/
 # Local tooling and docs
 /.serena/
 docs/
+PERF_BASELINE.md
