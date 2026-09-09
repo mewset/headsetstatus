@@ -76,6 +76,12 @@ ctest --test-dir build --output-on-failure
 
 </details>
 
+## Related Projects
+
+Running **Omarchy 4 (Quattro)**? We recommend our sister project [omajuice](https://github.com/mewset/omajuice) alongside HeadsetStatus.
+
+> Awaiting validation for listing in the Omarchy plugin marketplace.
+
 ## Usage
 
 ```bash
